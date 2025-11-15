@@ -22,8 +22,6 @@ Vous êtes missionné par l'ENC pour développer le module d'inscription finale 
 * Un SGBD (MySQL/MariaDB) et un outil d'administration (HeidiSQL, phpMyAdmin).
 * Connaissances de base en HTML (formulaires) et PHP (variables, `$_POST`).
 
-
-
 ## 📂 Structure du Projet (Architecture MVC)
 
 Notre application suit une architecture MVC simple pour bien séparer les rôles :
@@ -88,4 +86,4 @@ Ce projet est divisé en plusieurs TPs qui s'enchaînent logiquement.
 1.  **Base de Données :** Exécutez le script SQL du TP6 dans votre SGBD pour créer la base `enc_parcoursup` et la table `etudiant`.
 2.  **Connexion :** Ouvrez `model/database.php` et vérifiez que les identifiants (`$user`, `$pass`) correspondent à votre configuration locale.
 3.  **Lancement :** Placez le dossier `tp_enc_mvc` dans votre répertoire `www` (ou équivalent).
-4.  **Accès :** Ouvrez votre navigateur et allez à `http://localhost/tp_enc_mvc/`.
+4.  **Accès :** Ouvrez votre navigateur et allez à `http://localhost/`.
