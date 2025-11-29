@@ -37,6 +37,13 @@
             <label for="email">Email :</label>
             <input type="email" id="email" name="email" required>
         </div>
+
+
+        <div>
+            <label for="numero_dossier">Nulmero de dossier:</label>
+            <input type="text" id="numero_dossier" name="numero_dossier" required>
+        </div>
+
         <div>
             <label for="section">Section :</label>
             <select id="section" name="section" required>
@@ -49,6 +56,7 @@
                 <option value="CG2">CG2</option>
             </select>
         </div>
+
         <div>
             <label for="mdp">Mot de passe :</label>
             <input type="password" id="mdp" name="mot_de_passe" required>

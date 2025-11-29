@@ -17,7 +17,7 @@ require_once 'database.php';
  */
 
 // CORRECTION "A FAIRE" (Etape 4.3) : signature modifiée 
-function inscrireEtudiant(string $nom, string $prenom, string $email, string $section, string $mdp): bool
+function inscrireEtudiant(string $nom, string $prenom, string $email, string $section, string $mdp, string $numero_dossier_chiffre): bool
 {
     // 1. Récupérer la connexion à la BDD
     $bdd = getBdd();
@@ -28,15 +28,15 @@ function inscrireEtudiant(string $nom, string $prenom, string $email, string $se
 
     // CORRECTION "A FAIRE" (Etape 4.4) : requête modifiée
     $requete = $bdd->prepare('
-        INSERT INTO etudiant (nom, prenom, email, section, mot_de_passe)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO etudiant (nom, prenom, email, section, mot_de_passe, numero_dossier)
+        VALUES (?, ?, ?, ?, ?, ?)
     ');
 
     // 3. Exécuter la requête en passant les valeurs
     // L'ordre doit correspondre aux '?' ci-dessus
     // (Comme indiqué Etape 4.5 du TP [cite: 120])
 
-    $succes = $requete->execute([$nom, $prenom, $email, $section, $mdp_hache]);
+    $succes = $requete->execute([$nom, $prenom, $email, $section, $mdp_hache, $numero_dossier_chiffre]);
 
     return $succes;
 }
@@ -60,4 +60,12 @@ function getEtudiantByEmail(string $email): array|false
     $etudiant = $requete->fetch(); 
     
     return $etudiant;
+}
+
+// Récupération de tous les étudiants de la BDD
+
+function getAllEtudiants(): array {
+    $bdd = getBdd();
+    $requete = $bdd->query('SELECT email, section, numero_dossier FROM etudiant');
+    return $requete->fetchAll() ;
 }

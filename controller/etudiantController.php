@@ -21,6 +21,7 @@ function afficherFormulaire()
  */
 function traiterInscription()
 {
+    require_once __DIR__ .'/../services/CryptoService.php';
     // 1. Vérifier si les données POST existent (ajout de 'section')
     if (isset($_POST['nom']) && isset($_POST['prenom']) && isset($_POST['email']) && isset($_POST['section']) && isset($_POST['mot_de_passe'])) {
         
@@ -33,12 +34,20 @@ function traiterInscription()
         // CORRECTION "A FAIRE" (Etape 3.3) [cite: 94]
         $section = $_POST['section'];
 
+        // Récupération du numéro sensible
+
+        $numero_dossier_clair = $_POST['numero_dossier'] ;
+
+        // chiffrer la données sensible
+
+        $numero_dossier_chiffre = encryptData($numero_dossier_clair) ;
+
         // 3. Tenter d'inscrire l'étudiant (Appel au Modèle)
         try {
             // Le contrôleur demande au modèle d'inscrire l'étudiant
             
             // CORRECTION "A FAIRE" (Etape 3.4) [cite: 98]
-            $succes = inscrireEtudiant($nom, $prenom, $email, $section, $mdp);
+            $succes = inscrireEtudiant($nom, $prenom, $email, $section, $mdp, $numero_dossier_chiffre);
 
             // 4. Afficher la vue correspondante
             if ($succes) {
@@ -75,6 +84,8 @@ function afficherFormulaireLogin()
  */
 function traiterConnexion()
 {
+    require_once __DIR__ .'/../services/CryptoService.php';
+
     // 1. Vérifier si les données POST existent
     if (isset($_POST['email']) && isset($_POST['mot_de_passe'])) {
         $email = $_POST['email'];
@@ -84,16 +95,20 @@ function traiterConnexion()
         $etudiant = getEtudiantByEmail($email);
 
         // 3. Vérifier si l'étudiant existe
-        if ($etudiant) {
+        if ($etudiant && password_verify($mdp_saisi, $etudiant['mot_de_passe'])) {
             
-            // ATTENTION : FAILLE DE SÉCURITÉ VOLONTAIRE POUR LE TP
-            if (password_verify($mdp_saisi, $etudiant['mot_de_passe'])) {
-                // Mot de passe correct !
-                require_once __DIR__ . '/../view/succesConnexion.php';
-            } else {
-                // Mauvais mot de passe
-                require_once __DIR__ . '/../view/erreurConnexion.php';
-            }
+            // GESTION DES SESSIONS
+            $_SESSION['user_id'] = $etudiant['id'] ;
+            $_SESSION['user_email'] = $etudiant['email'] ;
+
+            // on triche pour le rôle admin
+            if ($etudiant['email'] === 'admin@enc.fr')
+                $_SESSION['user_role'] = 'admin' ;
+            else 
+                $_SESSION['user_role'] = 'etudiant' ;
+
+            header('Location: index.php?action=dashboard') ;
+            exit ; // toujours un exit après redirection
             
         } else {
             // Aucun étudiant trouvé avec cet email
@@ -103,4 +118,56 @@ function traiterConnexion()
         // Données POST manquantes
         echo "Erreur : email et mot de passe requis.";
     }
+}
+
+/**
+ * ACTION : Affiche le tableau de bord (listing étudiants)
+ * C'est ici qu'on utilise BOUCLES et CONDITIONS
+ */
+/**
+ * ACTION : Affiche le tableau de bord (listing étudiants)
+ */
+function afficherDashboard()
+{
+    require_once __DIR__ . '/../services/CryptoService.php';
+
+    // 1. Sécurité : vérifier si l'utilisateur est connecté
+    if (!isset($_SESSION['user_email'])) {
+        header('Location: index.php?action=login'); 
+        exit;
+    }
+
+    // 2. Récupérer les données de session
+    $isAdmin = ($_SESSION['user_role'] === 'admin');
+    $currentUserEmail = $_SESSION['user_email']; // Pour comparer dans la boucle
+
+    $etudiants = getAllEtudiants(); 
+    $etudiantsPourVue = []; 
+
+    // 3. TRAITEMENT 
+    foreach ($etudiants as $etudiant) {
+        
+        $email = $etudiant['email'];
+        $dossier_a_afficher = "[ACCÈS REFUSÉ]"; // Valeur par défaut
+        
+        // <-- CORRECTION ICI : La condition de visibilité -->
+        // On vérifie si l'utilisateur est admin OU s'il est le propriétaire de la ligne
+        $isOwner = ($email === $currentUserEmail);
+
+        if ($isAdmin || $isOwner) {
+            // Droit de lecture accordé : on déchiffre
+            $dossier_dechiffre = decryptData($etudiant['numero_dossier']);
+            $dossier_a_afficher = $dossier_dechiffre ?? "[Erreur]";
+        } 
+        
+        // On remplit le tableau pour la vue
+        $etudiantsPourVue[] = [
+            'email' => $email,
+            'section' => $etudiant['section'],
+            'dossier' => $dossier_a_afficher,
+            'is_owner' => $isOwner // (Optionnel) Utile si on veut mettre du gras en CSS
+        ];
+    }
+
+    require_once __DIR__ . '/../view/adminDashboard.php';
 }
