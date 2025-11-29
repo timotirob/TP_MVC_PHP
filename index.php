@@ -39,7 +39,18 @@ switch ($action) {
         // Traite la tentative de connexion
         traiterConnexion();
         break;
-    // FIN NOUVEAUX CAS
+    // --- NOUVELLES ROUTES INFIRMIERES ---
+
+    case 'infirmerie': 
+        // Affiche la liste des documents médicaux
+        afficherDashboardInfirmiere();
+        break;
+
+    case 'telecharger_medical':
+        // Action de déchiffrement et téléchargement
+        telechargerDocument();
+        break;
+
     case 'accueil':
     default:
         // Par défaut, ou si l'action est 'accueil', on appelle afficherFormulaire()

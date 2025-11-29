@@ -46,17 +46,50 @@ function traiterInscription()
         try {
             // Le contrôleur demande au modèle d'inscrire l'étudiant
             
-            // CORRECTION "A FAIRE" (Etape 3.4) [cite: 98]
-            $succes = inscrireEtudiant($nom, $prenom, $email, $section, $mdp, $numero_dossier_chiffre);
+            // Appel modifié : on récupère l'ID (int) au lieu du succès (bool)
+$newEtudiantId = inscrireEtudiant($nom, $prenom, $email, $section, $mdp, $numero_dossier_chiffre);
 
-            // 4. Afficher la vue correspondante
-            if ($succes) {
-                // Si le modèle dit que c'est OK, on affiche la vue "succès"
-                require_once __DIR__ . '/../view/succesInscription.php';
-            } else {
-                // Si le modèle dit que ça n'a pas marché (cas rare ici)
-                require_once __DIR__ . '/../view/erreurInscription.php';
-            }
+if ($newEtudiantId > 0) { // Si l'ID est supérieur à 0, c'est que ça a marché
+
+    // DEBUG TEMPORAIRE
+    echo "<h1>DEBUG</h1>";
+    echo "ID Étudiant créé : " . $newEtudiantId . "<br>";
+    echo "Fichier reçu ? ";
+    var_dump($_FILES['fichier_medical']);
+    
+    // === GESTION DU FICHIER MÉDICAL (Nouveau) ===
+    // On vérifie si un fichier a été envoyé sans erreur
+    if (isset($_FILES['fichier_medical']) && $_FILES['fichier_medical']['error'] === 0) {
+        
+        $tmpName = $_FILES['fichier_medical']['tmp_name'];
+        $originalName = $_FILES['fichier_medical']['name'];
+        
+        // 1. Lire le contenu brut du fichier temporaire
+        $fileContent = file_get_contents($tmpName);
+
+        // 2. Chiffrer (Hybride) via le service
+
+        $cryptoData = chiffreFichierPourInfirmiere($fileContent);
+
+        // 3. Enregistrer en BDD lié au nouvel étudiant
+        ajouterDocumentSante(
+            $newEtudiantId, 
+            $originalName, 
+            $cryptoData['content'], // Le fichier chiffré (AES)
+            $cryptoData['key'],     // La clé AES chiffrée (RSA)
+            $cryptoData['iv']       // L'IV
+        );
+    }
+    else {
+    echo "<br>Erreur Upload : Code erreur = " . $_FILES['fichier_medical']['error'];
+        // Rappel codes erreurs : 1 = Fichier trop gros (php.ini), 4 = Pas de fichier envoyé
+    }
+    // ============================================
+
+    require_once __DIR__ . '/../view/succesInscription.php';
+    } else {
+    require_once __DIR__ . '/../view/erreurInscription.php';
+    }
 
         } catch (Exception $e) {
             // Si le modèle lève une exception (ex: email déjà utilisé),
@@ -102,13 +135,17 @@ function traiterConnexion()
             $_SESSION['user_email'] = $etudiant['email'] ;
 
             // on triche pour le rôle admin
-            if ($etudiant['email'] === 'admin@enc.fr')
-                $_SESSION['user_role'] = 'admin' ;
-            else 
-                $_SESSION['user_role'] = 'etudiant' ;
-
-            header('Location: index.php?action=dashboard') ;
-            exit ; // toujours un exit après redirection
+            // Dans traiterConnexion(), remplacez la gestion des rôles par :
+            if ($etudiant['email'] === 'admin@enc.fr') {
+                $_SESSION['user_role'] = 'admin';
+                header('Location: index.php?action=dashboard');
+            } elseif ($etudiant['email'] === 'infirmiere@enc.fr') { // <-- NOUVEAU
+                $_SESSION['user_role'] = 'infirmiere';
+                header('Location: index.php?action=infirmerie'); // Redirection spécifique
+            } else {
+                $_SESSION['user_role'] = 'etudiant';
+                header('Location: index.php?action=dashboard');
+            }
             
         } else {
             // Aucun étudiant trouvé avec cet email
@@ -170,4 +207,60 @@ function afficherDashboard()
     }
 
     require_once __DIR__ . '/../view/adminDashboard.php';
+}
+
+/**
+ * Affiche le dashboard spécifique infirmerie
+ */
+function afficherDashboardInfirmiere()
+{
+    // Sécurité : Seule l'infirmière passe
+    if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'infirmiere') {
+        die("Accès INTERDIT : Réservé au personnel médical.");
+    }
+
+    $documents = getAllDocumentsSante(); // Appel au modèle
+    require_once __DIR__ . '/../view/infirmiereDashboard.php';
+}
+
+/**
+ * Gère le déchiffrement et le téléchargement
+ */
+function telechargerDocument()
+{
+    require_once __DIR__ . '/../services/CryptoService.php';
+
+    // 1. Sécurité
+    if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'infirmiere') {
+        die("Accès INTERDIT.");
+    }
+
+    if (!isset($_GET['doc_id'])) die("ID manquant.");
+    $id = (int)$_GET['doc_id'];
+
+    // 2. Récupération des données chiffrées (Modèle)
+    $doc = getDocumentSanteById($id);
+    if (!$doc) die("Document introuvable.");
+
+    // 3. Déchiffrement (Service Hybride)
+    // On passe le BLOB chiffré, la CLÉ chiffrée (RSA) et l'IV
+    $contenuClair = dechiffreFichierPourInfirmiere(
+        $doc['contenu_chiffre'], 
+        $doc['cle_session_chiffree'], 
+        $doc['iv_fichier']
+    );
+
+    if ($contenuClair === null) {
+        die("Erreur : Impossible de déchiffrer. Vérifiez la clé privée.");
+    }
+
+    // 4. Envoi du fichier au navigateur (Headers HTTP)
+    // On force le téléchargement
+    header('Content-Description: File Transfer');
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="DEC_' . $doc['nom_fichier_origine'] . '"');
+    header('Content-Length: ' . strlen($contenuClair));
+    
+    echo $contenuClair;
+    exit;
 }

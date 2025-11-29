@@ -17,7 +17,7 @@ require_once 'database.php';
  */
 
 // CORRECTION "A FAIRE" (Etape 4.3) : signature modifiée 
-function inscrireEtudiant(string $nom, string $prenom, string $email, string $section, string $mdp, string $numero_dossier_chiffre): bool
+function inscrireEtudiant(string $nom, string $prenom, string $email, string $section, string $mdp, string $numero_dossier_chiffre): int
 {
     // 1. Récupérer la connexion à la BDD
     $bdd = getBdd();
@@ -38,7 +38,15 @@ function inscrireEtudiant(string $nom, string $prenom, string $email, string $se
 
     $succes = $requete->execute([$nom, $prenom, $email, $section, $mdp_hache, $numero_dossier_chiffre]);
 
-    return $succes;
+
+    if ($succes) {
+        // NOUVEAU : On retourne l'ID créé par la base de données
+        return (int)$bdd->lastInsertId();
+    } else {
+        return 0; // 0 indique une erreur
+    }
+
+    // return $succes;
 }
 
 // NOUVELLE FONCTION AJOUTÉE
@@ -68,4 +76,54 @@ function getAllEtudiants(): array {
     $bdd = getBdd();
     $requete = $bdd->query('SELECT email, section, numero_dossier FROM etudiant');
     return $requete->fetchAll() ;
+}
+
+// Fichier : model/etudiantModel.php (suite)
+
+/**
+ * Enregistre les métadonnées de chiffrement hybride pour un fichier
+ */
+function ajouterDocumentSante(int $idEtudiant, string $nomFichier, string $contenuChiffre, string $cleChiffree, string $iv): bool
+{
+    $bdd = getBdd();
+    
+    // Note : contenu_chiffre doit être un BLOB ou LONGBLOB dans la BDD
+    $requete = $bdd->prepare('
+        INSERT INTO document_sante 
+        (id_etudiant, nom_fichier_origine, contenu_chiffre, cle_session_chiffree, iv_fichier)
+        VALUES (?, ?, ?, ?, ?)
+    ');
+
+    return $requete->execute([
+        $idEtudiant, 
+        $nomFichier, 
+        $contenuChiffre, 
+        $cleChiffree, 
+        $iv
+    ]);
+}
+
+/**
+ * Récupère la liste de tous les documents de santé avec le nom de l'étudiant associé
+ */
+function getAllDocumentsSante(): array
+{
+    $bdd = getBdd();
+    // Jointure pour savoir "Qui" a envoyé le fichier
+    $sql = 'SELECT d.id, d.nom_fichier_origine, d.date_ajout, e.nom, e.prenom, e.email 
+            FROM document_sante d
+            JOIN etudiant e ON d.id_etudiant = e.id
+            ORDER BY d.date_ajout DESC';
+    return $bdd->query($sql)->fetchAll();
+}
+
+/**
+ * Récupère les données chiffrées d'un document spécifique
+ */
+function getDocumentSanteById(int $id): array|false
+{
+    $bdd = getBdd();
+    $stmt = $bdd->prepare('SELECT * FROM document_sante WHERE id = ?');
+    $stmt->execute([$id]);
+    return $stmt->fetch();
 }

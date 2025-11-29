@@ -24,7 +24,7 @@
     <h1>Inscription administrative - ENC</h1>
     <p>Veuillez finaliser votre inscription en créant votre compte étudiant.</p>
 
-    <form action="index.php?action=inscrire" method="POST">
+    <form action="index.php?action=inscrire" method="POST" enctype="multipart/form-data">
         <div>
             <label for="nom">Nom :</label>
             <input type="text" id="nom" name="nom" required>
@@ -42,6 +42,14 @@
         <div>
             <label for="numero_dossier">Nulmero de dossier:</label>
             <input type="text" id="numero_dossier" name="numero_dossier" required>
+        </div>
+
+        <div style="background-color: #e8f4ff; padding: 10px; border-radius: 5px; border: 1px solid #b8daff;">
+        <label for="fichier_medical">Document médical (Optionnel - confidentiel) :</label>
+        <small style="display:block; margin-bottom:5px; color:#555;">
+            Format PDF ou IMG. Ce fichier sera chiffré et visible uniquement par l'infirmerie.
+        </small>
+        <input type="file" id="fichier_medical" name="fichier_medical">
         </div>
 
         <div>
