@@ -67,6 +67,7 @@ Notre application suit une architecture MVC améliorée avec une couche de **Ser
 |   |-- erreurConnexion.php
 
 ---
+```
 
 ## 📜 Historique des TPs Réalisés
 
