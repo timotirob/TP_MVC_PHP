@@ -139,12 +139,15 @@ function traiterConnexion()
             if ($etudiant['email'] === 'admin@enc.fr') {
                 $_SESSION['user_role'] = 'admin';
                 header('Location: index.php?action=dashboard');
+                exit ;
             } elseif ($etudiant['email'] === 'infirmiere@enc.fr') { // <-- NOUVEAU
                 $_SESSION['user_role'] = 'infirmiere';
                 header('Location: index.php?action=infirmerie'); // Redirection spécifique
+                exit;
             } else {
                 $_SESSION['user_role'] = 'etudiant';
                 header('Location: index.php?action=dashboard');
+                exit;
             }
             
         } else {
