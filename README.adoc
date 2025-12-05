@@ -1,0 +1,149 @@
+= Projet : Application d'Inscription Sécurisée (PHP MVC & Crypto)
+:toc: macro
+:toc-title: Sommaire
+
+Ce projet est un exercice complet de développement web sécurisé. Il part d'une application PHP MVC simple pour aboutir à une architecture complexe intégrant du chiffrement hybride et une gestion de version professionnelle via SSH.
+
+toc::[]
+
+== 🎯 Contexte
+
+Vous êtes missionné par l'ENC pour développer le module d'inscription finale des nouveaux étudiants après Parcoursup.
+L'application doit gérer :
+
+* L'inscription et l'authentification des étudiants.
+* La protection des mots de passe (Hachage).
+* La confidentialité des données administratives (Chiffrement Symétrique).
+* La confidentialité stricte des documents médicaux (Chiffrement Hybride).
+
+== 📚 Objectifs Pédagogiques
+
+À la fin de ce cycle de TPs, vous êtes sensibilisé à :
+
+. **Architecture** : Structure MVC, séparation logique/données/vue.
+. **Sécurité Web** : Différence entre Hachage (MDP) et Chiffrement (Données).
+. **Cryptographie** :
+** Symétrique (AES-256) pour les données textuelles.
+** Hybride (AES + RSA) pour les fichiers volumineux.
+. **Authentification** : Gestion des Sessions et des Rôles (Admin, Étudiant, Infirmière).
+. **DevOps** : Utilisation de clés SSH pour l'authentification Git.
+
+== 🛠️ Prérequis
+
+* Serveur Web (Apache/Nginx) avec PHP 8+.
+* Base de données MySQL/MariaDB.
+* Extension PHP `openssl` activée.
+* Client Git.
+
+== 📂 Structure du Projet
+
+[source,text]
+----
+/tp_enc_mvc/
+|
+|-- id_rsa_infirmerie          # 🔑 Clé Privée (Sert à déchiffrer - Simule le poste Infirmière)
+|-- id_rsa_infirmerie.pub      # 🔑 Clé Publique (Format SSH - Pour Git/Github)
+|-- id_rsa_infirmerie_php.pem  # 🔑 Clé Publique (Format PEM - Convertie pour PHP OpenSSL)
+|-- setup_keys.php             # 🛠️ Script pour générer/convertir les clés.
+|
+|-- index.php                  # Contrôleur Frontal (Routeur)
+|
+|-- controller/
+|   |-- etudiantController.php # Gère Inscription, Auth, Dashboards (Admin/Infirmière).
+|
+|-- model/
+|   |-- database.php           # Connexion BDD (PDO).
+|   |-- etudiantModel.php      # CRUD Étudiant + Documents Santé (BLOBs).
+|
+|-- services/                  # COUCHE CRYPTO
+|   |-- CryptoService.php      # Contient : encryptData (AES) & chiffreFichier (Hybride).
+|
+|-- view/
+|   |-- formulaireInscription.php
+|   |-- adminDashboard.php     # Vue Admin (Données déchiffrées).
+|   |-- infirmiereDashboard.php # Vue Infirmière (Téléchargement sécurisé).
+|   ...
+----
+
+== 🚀 Historique des TPs
+
+=== TP 1-3 : Les Fondations MVC & Auth
+* Mise en place du **Modèle-Vue-Contrôleur**.
+* Sécurisation des mots de passe avec `password_hash()` et `password_verify()`.
+
+=== TP 4 : Confidentialité des Données (Symétrique)
+* **Objectif :** Protéger le "Numéro de Dossier".
+* **Méthode :** Chiffrement AES-256-CBC via `CryptoService`.
+* **Règle métier :** Seul l'administrateur peut voir le numéro déchiffré. L'étudiant voit `[ACCÈS REFUSÉ]`.
+
+=== TP 5 : Documents Médicaux & Git (Hybride & SSH)
+Ce TP couvre deux aspects majeurs utilisant la même paire de clés RSA.
+
+==== A. Le Chiffrement Hybride (Module Infirmerie)
+Pour sécuriser les fichiers PDF (trop gros pour RSA seul) :
+1.  Génération d'une **clé AES unique** (session).
+2.  Chiffrement du fichier avec cette clé AES.
+3.  Chiffrement de la clé AES avec la **Clé Publique RSA** de l'infirmerie.
+4.  Stockage du tout (Blob chiffré + Clé chiffrée + IV) en base de données.
+
+==== B. Authentification Git via SSH
+Nous utilisons la **Clé Privée** de l'infirmière pour nous authentifier sur GitHub/GitLab, prouvant que la cryptographie asymétrique sert à la fois à la confidentialité et à l'authenticité.
+
+== 🧠 Schéma de Synthèse : Le Double Usage RSA
+
+Ce schéma illustre comment la même paire de clés est utilisée pour deux objectifs de sécurité opposés dans nos TPs.
+
+[source,text]
+----
+       UTILISATION DE LA PAIRE DE CLÉS RSA (INFIRMERIE)
+       ================================================
+
+   [ CONTEXTE 1 : Confidentialité ]           [ CONTEXTE 2 : Authenticité ]
+      (TP PHP / Données Médicales)                  (TP GIT / SSH)
+                 │                                        │
+                 ▼                                        ▼
+    +-------------------------+              +-------------------------+
+    |   Donnée Sensible       |              |   Connexion Serveur     |
+    |      (Fichier PDF)      |              |    (Github / Gitlab)    |
+    +-----------+-------------+              +------------+------------+
+                │                                         │
+                │ Chiffrement                             │ Signature
+                │ (Cadenas)                               │ (Sceau)
+                ▼                                         ▼
+      +-------------------+                     +-------------------+
+      |   CLÉ PUBLIQUE    |                     |    CLÉ PRIVÉE     |
+      | (id_rsa_inf.pub)  |                     | (id_rsa_infirmerie)|
+      +-------------------+                     +-------------------+
+                │                                         │
+    "N'importe qui peut fermer                "Seul le propriétaire
+     le cadenas (chiffrer),                    peut apposer son sceau
+     seul le privé l'ouvre."                   (prouver son identité)."
+----
+
+== 💻 Commandes Utiles
+
+=== Génération des clés (Si script non dispo)
+[source,bash]
+----
+# Génération de la clé privée (Format PEM pour PHP)
+ssh-keygen -t rsa -b 4096 -m PEM -f id_rsa_infirmerie -N ""
+
+# Conversion de la clé publique pour PHP (Format PEM)
+ssh-keygen -f id_rsa_infirmerie.pub -e -m PEM > id_rsa_infirmerie_php.pem
+----
+
+=== Configuration Git locale
+Pour utiliser la clé du TP uniquement sur ce projet :
+[source,bash]
+----
+git config core.sshCommand "ssh -i ./id_rsa_infirmerie -F /dev/null"
+----
+
+== ⚠️ Avertissement de Sécurité
+
+Dans ce TP pédagogique, nous utilisons la même clé pour signer nos commits et chiffrer des données.
+**Dans un environnement de production :**
+
+. Ne jamais commiter de clés privées dans le dépôt.
+. Séparer les clés d'usage (une clé pour le code, une clé pour les données).
+. Stocker les clés privées sensibles sur des supports sécurisés (HSM, Vault, SmartCard).
