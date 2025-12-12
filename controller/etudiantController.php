@@ -129,23 +129,31 @@ function traiterConnexion()
 
         // 3. Vérifier si l'étudiant existe
         if ($etudiant && password_verify($mdp_saisi, $etudiant['mot_de_passe'])) {
-            
-            // GESTION DES SESSIONS
-            $_SESSION['user_id'] = $etudiant['id'] ;
-            $_SESSION['user_email'] = $etudiant['email'] ;
-
-            // on triche pour le rôle admin
-            // Dans traiterConnexion(), remplacez la gestion des rôles par :
+            // --- A. DÉTERMINATION DU RÔLE & REDIRECTION ---
+            // C'est ici qu'on remet la logique "métier" du TP
+            $role = 'etudiant'; // Par défaut
+            $actionRedirection = 'dashboard'; // Par défaut
             if ($etudiant['email'] === 'admin@enc.fr') {
-                $_SESSION['user_role'] = 'admin';
-                header('Location: index.php?action=dashboard');
-            } elseif ($etudiant['email'] === 'infirmiere@enc.fr') { // <-- NOUVEAU
-                $_SESSION['user_role'] = 'infirmiere';
-                header('Location: index.php?action=infirmerie'); // Redirection spécifique
-            } else {
-                $_SESSION['user_role'] = 'etudiant';
-                header('Location: index.php?action=dashboard');
+                $role = 'admin';
+                $actionRedirection = 'dashboard';
             }
+            elseif ($etudiant['email'] === 'infirmiere@enc.fr') { // <--- LE VOILÀ !
+                $role = 'infirmiere';
+                $actionRedirection = 'infirmerie'; // Redirection vers le dashboard spécial
+            }
+            // --- B. GÉNÉRATION DU TOKEN JWT ---
+            $payload = [
+                'user_id' => $etudiant['id'],
+                'user_email' => $etudiant['email'],
+                'role' => $role // On stocke le bon rôle dans le jeton
+            ];
+            $jwt = createJwt($payload);
+            // --- C. ENVOI DU COOKIE ---
+            // HttpOnly est crucial pour éviter le vol de session via XSS
+            setcookie('auth_token', $jwt, time() + 3600, '/', '', false, true);
+            // --- D. REDIRECTION ---
+            header('Location: index.php?action=' . $actionRedirection);
+            exit;
             
         } else {
             // Aucun étudiant trouvé avec cet email

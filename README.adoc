@@ -2,7 +2,7 @@
 :toc: macro
 :toc-title: Sommaire
 
-Ce projet est un exercice complet de développement web sécurisé. Il part d'une application PHP MVC simple pour aboutir à une architecture complexe intégrant du chiffrement hybride et une gestion de version professionnelle via SSH.
+Ce projet est un exercice complet de développement web sécurisé. Il part d'une application PHP MVC simple pour aboutir à une architecture complexe intégrant du chiffrement hybride, une gestion de version professionnelle via SSH et une authentification moderne par Token (JWT).
 
 toc::[]
 
@@ -15,17 +15,20 @@ L'application doit gérer :
 * La protection des mots de passe (Hachage).
 * La confidentialité des données administratives (Chiffrement Symétrique).
 * La confidentialité stricte des documents médicaux (Chiffrement Hybride).
+* **Nouveau :** Une authentification moderne sans session serveur (Stateless) via JWT.
 
-== 📚 Objectifs Pédagogiques
+== 📚 Objectifs
 
-À la fin de ce cycle de TPs, vous êtes sensibilisé à :
+À la fin de ce cycle de TPs, vous maîtrisez :
 
 . **Architecture** : Structure MVC, séparation logique/données/vue.
 . **Sécurité Web** : Différence entre Hachage (MDP) et Chiffrement (Données).
 . **Cryptographie** :
 ** Symétrique (AES-256) pour les données textuelles.
 ** Hybride (AES + RSA) pour les fichiers volumineux.
-. **Authentification** : Gestion des Sessions et des Rôles (Admin, Étudiant, Infirmière).
+. **Authentification** :
+** Gestion des Rôles (Admin, Étudiant, Infirmière).
+** Transition Session (Stateful) vers JWT (Stateless).
 . **DevOps** : Utilisation de clés SSH pour l'authentification Git.
 
 == 🛠️ Prérequis
@@ -46,22 +49,23 @@ L'application doit gérer :
 |-- id_rsa_infirmerie_php.pem  # 🔑 Clé Publique (Format PEM - Convertie pour PHP OpenSSL)
 |-- setup_keys.php             # 🛠️ Script pour générer/convertir les clés.
 |
-|-- index.php                  # Contrôleur Frontal (Routeur)
+|-- index.php                  # Contrôleur Frontal (Routeur + Middleware JWT)
 |
 |-- controller/
-|   |-- etudiantController.php # Gère Inscription, Auth, Dashboards (Admin/Infirmière).
+|   |-- etudiantController.php # Gère Inscription, Auth, Dashboards.
 |
 |-- model/
 |   |-- database.php           # Connexion BDD (PDO).
 |   |-- etudiantModel.php      # CRUD Étudiant + Documents Santé (BLOBs).
 |
-|-- services/                  # COUCHE CRYPTO
+|-- services/                  # COUCHE CRYPTO & AUTH
 |   |-- CryptoService.php      # Contient : encryptData (AES) & chiffreFichier (Hybride).
+|   |-- JwtService.php         # <--- NOUVEAU (Génération & Vérification de Tokens).
 |
 |-- view/
 |   |-- formulaireInscription.php
-|   |-- adminDashboard.php     # Vue Admin (Données déchiffrées).
-|   |-- infirmiereDashboard.php # Vue Infirmière (Téléchargement sécurisé).
+|   |-- adminDashboard.php
+|   |-- infirmiereDashboard.php
 |   ...
 ----
 
@@ -74,24 +78,21 @@ L'application doit gérer :
 === TP 4 : Confidentialité des Données (Symétrique)
 * **Objectif :** Protéger le "Numéro de Dossier".
 * **Méthode :** Chiffrement AES-256-CBC via `CryptoService`.
-* **Règle métier :** Seul l'administrateur peut voir le numéro déchiffré. L'étudiant voit `[ACCÈS REFUSÉ]`.
+* **Règle métier :** Seul l'administrateur peut voir le numéro déchiffré.
 
 === TP 5 : Documents Médicaux & Git (Hybride & SSH)
-Ce TP couvre deux aspects majeurs utilisant la même paire de clés RSA.
+* **Chiffrement Hybride :** Utilisation d'une clé de session AES éphémère chiffrée par RSA pour protéger les fichiers PDF médicaux.
+* **Authentification Git :** Utilisation de la même paire de clés RSA pour s'authentifier sur GitHub/GitLab.
 
-==== A. Le Chiffrement Hybride (Module Infirmerie)
-Pour sécuriser les fichiers PDF (trop gros pour RSA seul) :
-1.  Génération d'une **clé AES unique** (session).
-2.  Chiffrement du fichier avec cette clé AES.
-3.  Chiffrement de la clé AES avec la **Clé Publique RSA** de l'infirmerie.
-4.  Stockage du tout (Blob chiffré + Clé chiffrée + IV) en base de données.
-
-==== B. Authentification Git via SSH
-Nous utilisons la **Clé Privée** de l'infirmière pour nous authentifier sur GitHub/GitLab, prouvant que la cryptographie asymétrique sert à la fois à la confidentialité et à l'authenticité.
+=== TP 6 : Modernisation de l'Auth (JWT vs Sessions)
+* **Objectif :** Remplacer les sessions serveur (`$_SESSION` / fichier `/tmp`) par une architecture **Stateless**.
+* **Technologie :** JSON Web Token (JWT) stocké dans un cookie `HttpOnly`.
+* **Mécanisme :**
+** Le serveur signe un jeton contenant les infos utilisateur (ID, Rôle) avec un secret HMAC.
+** Le client renvoie ce jeton à chaque requête via le cookie.
+** Le serveur vérifie la signature mathématique au lieu de chercher un fichier en mémoire.
 
 == 🧠 Schéma de Synthèse : Le Double Usage RSA
-
-Ce schéma illustre comment la même paire de clés est utilisée pour deux objectifs de sécurité opposés dans nos TPs.
 
 [source,text]
 ----
@@ -122,7 +123,7 @@ Ce schéma illustre comment la même paire de clés est utilisée pour deux obje
 
 == 💻 Commandes Utiles
 
-=== Génération des clés (Si script non dispo)
+=== Génération des clés (RSA)
 [source,bash]
 ----
 # Génération de la clé privée (Format PEM pour PHP)
@@ -133,7 +134,6 @@ ssh-keygen -f id_rsa_infirmerie.pub -e -m PEM > id_rsa_infirmerie_php.pem
 ----
 
 === Configuration Git locale
-Pour utiliser la clé du TP uniquement sur ce projet :
 [source,bash]
 ----
 git config core.sshCommand "ssh -i ./id_rsa_infirmerie -F /dev/null"
@@ -141,9 +141,8 @@ git config core.sshCommand "ssh -i ./id_rsa_infirmerie -F /dev/null"
 
 == ⚠️ Avertissement de Sécurité
 
-Dans ce TP pédagogique, nous utilisons la même clé pour signer nos commits et chiffrer des données.
-**Dans un environnement de production :**
+Dans ce TP  :
 
-. Ne jamais commiter de clés privées dans le dépôt.
-. Séparer les clés d'usage (une clé pour le code, une clé pour les données).
-. Stocker les clés privées sensibles sur des supports sécurisés (HSM, Vault, SmartCard).
+. Nous utilisons la même clé pour signer nos commits et chiffrer des données (mauvaise pratique en prod).
+. Le secret JWT est codé en dur dans le fichier PHP (devrait être dans une variable d'environnement).
+. Nous stockons le JWT dans un cookie (bonne pratique, mais attention au flag `HttpOnly`).
