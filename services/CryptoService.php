@@ -91,7 +91,12 @@ function chiffreFichierPourInfirmiere(string $fileContent): array
     // C. Chiffrement Symétrique du contenu
     $ivLength = openssl_cipher_iv_length(ENCRYPTION_CIPHER);
     $iv = openssl_random_pseudo_bytes($ivLength);
-    $contenuChiffre = openssl_encrypt($fileContent, ENCRYPTION_CIPHER, $sessionKey, OPENSSL_RAW_DATA, $iv);
+    $contenuChiffre = openssl_encrypt(
+        $fileContent, 
+        ENCRYPTION_CIPHER, 
+        $sessionKey, 
+        OPENSSL_RAW_DATA, 
+        $iv);
 
     // D. Chiffrement Asymétrique de la clé de session
     // Note : On gère le cas où la clé publique serait invalide
