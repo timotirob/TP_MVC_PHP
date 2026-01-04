@@ -1,0 +1,199 @@
+= TP Final : Déploiement DevOps & Mise en Production
+:toc: macro
+:toc-title: Sommaire
+:icons: font
+
+// Introduction
+WARNING: **Dernière étape avant la scission SISR / SLAM !**
+Ce TP final a pour but de professionnaliser notre application. Fini le "ça marche sur ma machine". Nous allons déployer votre travail sur un véritable serveur Linux accessible depuis internet, en utilisant des méthodes modernes (GitOps).
+
+toc::[]
+
+== 🎯 Objectifs
+
+* **SISR :** Administration serveur Linux, gestion des logs Apache/PHP, configuration SSH, gestion des variables d'environnement.
+* **SLAM :** Adaptation du code pour la production ("12-Factor App"), déploiement via Git, gestion des secrets.
+
+== 🛠️ Prérequis
+
+* Le projet `tp_enc_mvc` fonctionnel (avec JWT et Chiffrement Hybride).
+* Votre dépôt GitHub/GitLab à jour.
+* Un terminal (Git Bash ou PowerShell).
+
+---
+
+== Partie 1 : Préparation du Code (Sécurité & Environnement)
+
+En DevOps, une règle d'or est de **ne jamais stocker les mots de passe de production dans le code source**.
+Si vous poussez un fichier contenant le mot de passe de la BDD de production sur GitHub, votre système est compromis.
+
+Nous allons modifier l'application pour qu'elle récupère sa configuration depuis les **Variables d'Environnement** du serveur.
+
+=== 1.1 Modification de `model/database.php`
+
+Ouvrez le fichier `model/database.php` et remplacez la fonction de connexion par celle-ci.
+Elle utilise `getenv()` pour chercher la configuration. Si elle ne trouve rien (cas local Laragon), elle utilise les valeurs par défaut.
+
+[source,php]
+----
+<?php
+// Fichier : model/database.php
+
+function getBdd() {
+    // 1. On tente de lire les variables d'environnement (Config Serveur)
+    // Si elles n'existent pas (?:), on prend les valeurs locales (Laragon)
+
+    // Configuration Base de Données
+    $host = getenv('DB_HOST') ?: 'localhost';
+    $db   = getenv('DB_NAME') ?: 'tp_enc';
+    $user = getenv('DB_USER') ?: 'root';
+    $pass = getenv('DB_PASS') ?: '';
+
+    // Configuration JWT (Secret)
+    // On définit la constante seulement si elle n'existe pas déjà
+    if (!defined('JWT_SECRET')) {
+        $secret = getenv('JWT_SECRET') ?: 'ma_cle_secrete_locale_pour_le_dev_a_changer';
+        define('JWT_SECRET', $secret);
+    }
+
+    try {
+        $bdd = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
+        $bdd->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        return $bdd;
+    } catch (Exception $e) {
+        // En production, on évite d'afficher $e->getMessage() directement aux utilisateurs
+        // Mais pour ce TP, on le garde pour le débogage.
+        die('Erreur BDD : ' . $e->getMessage());
+    }
+}
+----
+
+=== 1.2 Mise à jour du dépôt
+Une fois le code modifié :
+
+1.  Testez en local (Laragon) pour vérifier que vous n'avez rien cassé (le fallback local doit fonctionner).
+2.  Envoyez les modifications sur GitHub.
+
+[source,bash]
+----
+git add model/database.php
+git commit -m "feat: ajout support variables environnement"
+git push origin master
+----
+
+
+== Partie 2 : Infrastructure (AlwaysData)
+
+Nous allons utiliser **AlwaysData**, un hébergeur qui fournit un accès **SSH** complet.
+
+=== 2.1 Création du compte et BDD
+1.  Créez un compte gratuit sur https://www.alwaysdata.com (Pack 100 Mo gratuit).
+2.  Dans l'interface d'administration, allez dans **Bases de données > MySQL**.
+3.  Ajoutez un **Utilisateur** (notez bien le mot de passe !).
+4.  Ajoutez une **Base de données** et liez-la à l'utilisateur que vous venez de créer.
+
+=== 2.2 Configuration des Secrets (DevOps)
+C'est ici que nous injectons la configuration de production sans toucher au code.
+
+1.  Allez dans le menu **Environnement > Variables d'environnement**.
+2.  Ajoutez les variables suivantes (avec VOS valeurs AlwaysData) :
+
+|===
+| Nom de la Variable | Valeur (Exemple)
+
+| `DB_HOST`
+| `mysql-votrecompte.alwaysdata.net` (Voir onglet MySQL)
+
+| `DB_NAME`
+| `votrecompte_projet`
+
+| `DB_USER`
+| `votrecompte_user`
+
+| `DB_PASS`
+| `LeMotDePasseQueVousAvezChoisi`
+
+| `JWT_SECRET`
+| `UnePhraseTresLongueEtAleatoirePourLaProd!`
+|===
+
+IMPORTANT: Ces informations sont maintenant sécurisées dans la configuration du serveur et n'apparaissent nulle part dans votre code GitHub.
+
+== Partie 3 : Le Déploiement (SSH & Git)
+
+Oubliez FileZilla ! Nous allons agir comme des Administrateurs Système en prenant le contrôle du serveur à distance.
+
+=== 3.1 Connexion SSH
+1.  Allez dans **Accès distant > SSH** pour trouver votre commande de connexion.
+2.  Ouvrez votre terminal (Git Bash) et connectez-vous.
+
+[source,bash]
+----
+# Exemple (adaptez avec votre user)
+ssh moncompte@ssh-moncompte.alwaysdata.net
+----
+_(Entrez votre mot de passe compte AlwaysData quand demandé. Rien ne s'affiche quand vous tapez, c'est normal nous sommes sous Linux !)_
+
+=== 3.2 Installation du Code
+Une fois connecté (écran noir), tapez les commandes suivantes :
+
+[source,bash]
+----
+# 1. Se déplacer dans le dossier public web
+cd www
+
+# 2. Nettoyer le dossier (Supprime le fichier 'default' d'AlwaysData)
+rm -rf *
+
+# 3. Cloner votre dépôt GitHub
+# (N'oubliez pas l'espace et le POINT à la fin pour cloner ICI)
+git clone https://github.com/votre-pseudo/tp_enc_mvc.git .
+----
+
+=== 3.3 Importation de la Base de Données
+Nous allons injecter votre script SQL directement depuis le terminal SSH.
+
+[source,bash]
+----
+# Adaptez les valeurs : user, host et nom_bdd
+mysql -u votre_user -p -h mysql-votrecompte.alwaysdata.net votre_nom_bdd < inscription_enc_avecChiffrementHybride.sql
+----
+_(Entrez le mot de passe de la BDD MySQL quand demandé)._
+
+
+== Partie 4 : Vérification et Debug (SISR)
+
+=== 4.1 Test en direct
+Ouvrez votre navigateur sur votre URL : `http://votre-compte.alwaysdata.net`.
+
+* Essayez de vous inscrire.
+* Connectez-vous en Admin.
+* Connectez-vous en Infirmière.
+* **Test Ultime :** Uploadez un fichier médical et essayez de le télécharger. Si le déchiffrement fonctionne, c'est que la clé privée RSA est bien lue et que l'OpenSSL du serveur est actif !
+
+=== 4.2 En cas d'erreur (Log Management)
+Si vous avez une "Erreur 500" ou une page blanche : **Pas de panique, c'est le métier qui rentre.**
+
+Un administrateur ne devine pas, il lit les logs.
+Sur AlwaysData, les logs d'erreurs HTTP se trouvent ici :
+
+[source,bash]
+----
+# Dans le terminal SSH
+cat $HOME/admin/logs/apache/error.log
+----
+
+Analysez les dernières lignes pour comprendre le problème (souvent une erreur de connexion BDD ou un problème de chemin de fichier).
+
+== 🎁 Bonus : Automatisation (CI/CD)
+
+Pour éviter de taper `git clone` à chaque modification, vous pouvez configurer AlwaysData pour qu'il mette à jour le site automatiquement.
+
+1.  Allez dans **Web > Sites > Modifier**.
+2.  Cherchez la section **Déploiement automatique**.
+3.  Liez votre compte GitHub et sélectionnez votre dépôt.
+
+Désormais, un simple `git push` depuis votre ordinateur mettra à jour le site de production en quelques secondes !
+
+**Nous avons mis en place une chaîne de déploiement professionnelle !**
+----
