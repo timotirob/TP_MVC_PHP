@@ -90,34 +90,38 @@ Nous allons utiliser **AlwaysData**, un hébergeur qui fournit un accès **SSH**
 1.  Créez un compte gratuit sur https://www.alwaysdata.com (Pack 100 Mo gratuit).
 2.  Dans l'interface d'administration, allez dans **Bases de données > MySQL**.
 3.  Ajoutez un **Utilisateur** (notez bien le mot de passe !).
-4.  Ajoutez une **Base de données** et liez-la à l'utilisateur que vous venez de créer.
+4.  Ajoutez une **Base de données** et liez-la (dans Permissions) à l'utilisateur que vous venez de créer.
 
 === 2.2 Configuration des Secrets (DevOps)
 C'est ici que nous injectons la configuration de production sans toucher au code.
 
-1.  Allez dans le menu **Environnement > Variables d'environnement**.
-2.  Ajoutez les variables suivantes (avec VOS valeurs AlwaysData) :
+1.  Connectez-vous à l'administration AlwaysData.
+2.  Allez dans **Web > Sites**.
+3.  Cliquez sur l'icône **Modifier** (le petit crayon ✏️) à droite de votre site.
+4.  Descendez jusqu'à la section **Variables d'environnement**.
+5.  Saisissez vos variables (Format : `CLE=VALEUR`, **une par ligne**, sans guillemets ni point-virgule).
 
-|===
-| Nom de la Variable | Valeur (Exemple)
+Exemple de ce que vous devez coller dans la zone de texte :
 
-| `DB_HOST`
-| `mysql-votrecompte.alwaysdata.net` (Voir onglet MySQL)
-
-| `DB_NAME`
-| `votrecompte_projet`
-
-| `DB_USER`
-| `votrecompte_user`
-
-| `DB_PASS`
-| `LeMotDePasseQueVousAvezChoisi`
-
-| `JWT_SECRET`
-| `UnePhraseTresLongueEtAleatoirePourLaProd!`
-|===
+[source,text]
+----
+DB_HOST=mysql-votrecompte.alwaysdata.net
+DB_NAME=votrecompte_projet
+DB_USER=votrecompte_user
+DB_PASS=LeMotDePasseQueVousAvezChoisi
+JWT_SECRET=UnePhraseTresLongueEtAleatoirePourLaProd!
+----
 
 IMPORTANT: Ces informations sont maintenant sécurisées dans la configuration du serveur et n'apparaissent nulle part dans votre code GitHub.
+
+=== 2.3 Configuration de l'utilisateur SSH
+Pour pouvoir vous connecter au serveur, vous devez vous assurer que l'utilisateur SSH a bien un mot de passe défini.
+
+1.  Allez dans le menu **Accès distant > SSH/FTP**.
+2.  Vous devriez voir un utilisateur par défaut (souvent le nom de votre compte).
+3.  Cliquez sur **Modifier** (crayon).
+4.  Renseignez le champ **Mot de passe** (vous pouvez remettre le même que votre compte AlwaysData si vous le souhaitez, ou un nouveau).
+5.  Validez. **C'est ce mot de passe qui vous sera demandé dans le terminal.**
 
 == Partie 3 : Le Déploiement (SSH & Git)
 
