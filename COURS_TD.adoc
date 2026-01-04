@@ -1,0 +1,183 @@
+= Introduction à la Culture DevOps : Briser le Mur
+:toc: macro
+:toc-title: Sommaire
+:icons: font
+:imagesdir: ./images
+
+// Introduction pour le prof : Ce cours est conçu pour être projeté et discuté en 20 minutes, suivi d'un TD de réflexion.
+
+toc::[]
+
+== 🎓 Partie 1 : Le Mini-Cours
+
+=== 1. Le Problème : "Le Mur de la Confusion"
+
+Avant le DevOps, le monde de l'informatique était divisé en deux tribus ennemies.
+
+* **Les DEVs (Développeurs - Futurs SLAM)** :
+** 🎯 *Leur but* : Créer de la valeur, ajouter des fonctionnalités, coder vite.
+** 🗣️ *Leur devise* : "Le changement, c'est la vie !".
+** 🛠️ *Leur outil* : VS Code, Git.
+
+* **Les OPS (Opérations / SysAdmin - Futurs SISR)** :
+** 🎯 *Leur but* : La stabilité, la sécurité, la disponibilité (Uptime).
+** 🗣️ *Leur devise* : "Le changement, c'est le risque !".
+** 🛠️ *Leur outil* : SSH, Linux, Firewall.
+
+
+// Suggestion d'image : Un mur de briques avec des Devs d'un côté jetant du code par-dessus, et des Ops de l'autre côté qui paniquent avec des serveurs en feu.
+
+**Le scénario catastrophe classique :**
+
+1. Le Dev code une super fonctionnalité sur sa machine (`localhost`).
+2. "Ça marche sur ma machine !", dit-il.
+3. Il envoie le code par ZIP ou FTP à l'Ops.
+4. L'Ops déploie sur le serveur de production.
+5. **BOUM !** Le site plante. (Version de PHP différente, librairie manquante, config BDD fausse).
+6. L'Ops accuse le Dev ("Ton code est pourri"). Le Dev accuse l'Ops ("Ton serveur est mal configuré").
+
+=== 2. La Solution : DevOps (Development + Operations)
+
+Le DevOps n'est pas un métier, ni un outil. C'est une **culture**.
+C'est l'idée de **casser le mur** pour que Devs et Ops travaillent ensemble tout au long du cycle de vie de l'application.
+
+* **Le Dev** se soucie de savoir où son code va tourner (Docker, Config).
+* **L'Ops** automatise le déploiement pour que le Dev puisse livrer souvent sans tout casser.
+
+=== 3. Le Cycle Infini (The Infinity Loop)
+
+Le DevOps est représenté par un symbole infini, montrant que le travail ne s'arrête jamais.
+
+
+// Suggestion d'image : Le diagramme infini classique avec les étapes Plan, Code, Build, Test (Dev) et Release, Deploy, Operate, Monitor (Ops).
+
+. **PLAN** : On définit ce qu'on va faire (Jira, Trello).
+. **CODE** : On écrit le code (VS Code, Git).
+. **BUILD** : On assemble le code (Composer, compilation).
+. **TEST** : On vérifie automatiquement que rien n'est cassé.
+. **RELEASE** : On prépare la version.
+. **DEPLOY** : On met en ligne (ce que vous avez fait sur AlwaysData).
+. **OPERATE** : Le serveur tourne (Linux, Apache).
+. **MONITOR** : On surveille les logs et les erreurs (SISR).
+
+=== 4. Les 3 piliers techniques (CI/CD)
+
+Pour réussir cela, on utilise l'automatisation :
+
+1.  **CI (Continuous Integration)** :
+* À chaque fois qu'un Dev fait `git push`, un robot lance les tests.
+* Si ça plante 🔴, le code est refusé.
+
+2.  **CD (Continuous Deployment)** :
+* Si les tests passent 🟢, le robot déploie automatiquement le site sur le serveur.
+* Plus besoin de se connecter en SSH à la main !
+
+3.  **IaC (Infrastructure as Code)** :
+* On ne configure plus le serveur à la souris.
+* On écrit la config du serveur dans un fichier texte (comme votre `.htaccess` ou un `Dockerfile`).
+
+---
+
+== 📝 Partie 2 : TD - Analyse de notre Déploiement (1 Heure)
+
+*Objectif : Relier notre TP pratique (AlwaysData) aux concepts théoriques du DevOps.*
+
+=== Exercice 1 : Cartographie de vos outils
+
+Vous venez de déployer votre application. Classez les outils et actions que vous avez utilisés dans les cases "Dev" ou "Ops" (ou les deux).
+
+|===
+| Outil / Action | Est-ce DEV (SLAM) ? | Est-ce OPS (SISR) ? | Pourquoi ?
+
+| VS Code
+| ✅
+|
+| Création du code source
+
+| `git commit`
+|
+|
+|
+
+| Création BDD MySQL (Interface)
+|
+|
+|
+
+| `ssh user@serveur`
+|
+|
+|
+
+| Lecture des logs d'erreur
+|
+|
+|
+
+| Fichier `database.php` avec `getenv()`
+|
+|
+| Pont entre le code et le serveur
+
+|===
+
+=== Exercice 2 : Le concept des "Variables d'Environnement"
+
+Dans le TP, nous avons remplacé :
+`$pass = ""` (Code en dur)
+Par :
+`$pass = getenv('DB_PASS')` (Variable d'environnement)
+
+**Questions :**
+
+1.  **Sécurité :** Si un hacker vole votre code source sur GitHub demain, a-t-il le mot de passe de votre base de données de production ? Pourquoi ?
+2.  **Portabilité :** Imaginez que l'entreprise grandit. On achète un 2ème serveur pour tester ("Staging") avant la production.
+* Avez-vous besoin de modifier le code `database.php` pour le déployer sur ce serveur de test ?
+* Que devez-vous changer uniquement ?
+
+=== Exercice 3 : Scénario "Crash" (Collaboration SISR/SLAM)
+
+C'est lundi matin. Vous avez déployé la nouvelle version de l'application vendredi soir.
+Ce matin, le directeur appelle : *"Erreur 500 ! Le site est blanc ! Je perds de l'argent !"*
+
+**Simulez la résolution de crise DevOps :**
+
+1.  **Le réflexe OPS (SISR) :** Quelle est la toute première chose à faire ? (Indice : Ce n'est pas "Changer le code").
+* _Réponse attendue : Regarder les LOGS (`/var/log/apache2/error.log` ou console AlwaysData)._
+
+2.  **L'analyse :** Les logs disent : `PDOException: SQLSTATE[HY000] [1045] Access denied for user`.
+* D'où vient le problème ? (Code ou Config ?)
+* Qui doit intervenir ?
+
+3.  **L'analyse (Cas 2) :** Les logs disent : `Parse error: syntax error, unexpected '}' in index.php on line 42`.
+* D'où vient le problème ?
+* Comment est-ce possible que ça ait marché sur le PC du développeur avant ?
+* Quelle étape du "Cycle Infini" a manqué ici ? (Indice : Entre CODE et DEPLOY).
+
+=== Exercice 4 : Vers l'Automatisation (Bonus)
+
+Vous avez tapé ces commandes à la main pour déployer :
+[source,bash]
+----
+ssh monuser@serveur
+cd www
+git pull origin master
+----
+
+Imaginez que vous devez faire cela 10 fois par jour. C'est lent et risqué (erreur de frappe).
+Écrivez en pseudo-code ce que devrait faire un "Robot de déploiement" (GitHub Action) à chaque fois que vous faites un Push.
+
+* *Événement déclencheur* : ...
+* *Action 1* : Se connecter à ...
+* *Action 2* : ...
+* *Action 3* : ...
+* *Notification* : Envoyer un mail à ...
+
+== 🎯 Conclusion
+
+Que vous choisissiez **SISR** ou **SLAM** l'an prochain :
+
+* Le **SISR** devra savoir lire du code (PHP/SQL) pour comprendre pourquoi un serveur plante.
+* Le **SLAM** devra savoir utiliser SSH et les variables d'environnement pour que son code soit déployable.
+
+**Le DevOps, c'est la fin du "Ça marche sur ma machine".**
