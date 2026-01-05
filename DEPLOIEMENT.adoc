@@ -160,6 +160,30 @@ mysql -u votre_user -p -h mysql-votrecompte.alwaysdata.net votre_nom_bdd < inscr
 ----
 _(Entrez le mot de passe de la BDD MySQL quand demandé)._
 
+=== 3.4 Transfert des "Secrets" (Clés RSA)
+[WARNING]
+**GitHub a rejeté votre push ? C'est une sécurité !**
+GitHub analyse votre code et a détecté des fichiers ressemblant à des clés privées RSA. Il bloque le transfert pour éviter qu'elles ne deviennent publiques.
+**Règle d'or DevOps :** Les secrets (clés privées, mots de passe) ne sont JAMAIS stockés sur Git.
+
+Nous allons donc envoyer ces fichiers manuellement de votre ordinateur vers le serveur via le protocole **SCP** (Secure Copy), qui utilise le même canal sécurisé que SSH.
+
+1.  Ouvrez un terminal sur votre ordinateur **local** (dans le dossier de votre projet).
+2.  Repérez vos 3 fichiers de clés (Ex: `private.pem`, `public.pem`, etc.).
+3.  Utilisez la commande suivante pour les "téléporter" sur le serveur :
+
+[source,bash]
+----
+# Syntaxe : scp [fichiers] [utilisateur]@[hote]:[dossier_destination]
+
+# Exemple (adaptez *.pem selon le nom de vos clés) :
+scp *.pem *.key moncompte@ssh-moncompte.alwaysdata.net:www/
+----
+
+4.  Entrez votre mot de passe SSH (le même que pour la connexion précédente).
+5.  Le terminal vous indiquera la progression du transfert (100%).
+
+TIP: **Solution de secours :** Si la commande `scp` ne fonctionne pas chez vous, connectez-vous à l'interface web d'AlwaysData, allez dans **Web > Sites > Gestionnaire de fichiers**, entrez dans le dossier `www` et utilisez le bouton **Envoyer** pour uploader vos clés manuellement.
 
 == Partie 4 : Vérification et Debug (SISR)
 
